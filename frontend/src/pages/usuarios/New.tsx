@@ -1,0 +1,1 @@
+export default function UsuariosNew() { return <div>Usuarios - Novo</div> }

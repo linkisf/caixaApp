@@ -1,0 +1,108 @@
+/* =============================================================================
+   Relatórios (DRE & Balanço) — estilos ESCOPADOS
+   Coloque este conteúdo em src/pages/relatorios/dre.css (ou equivalente).
+   Ele só afeta páginas que usam o container raiz .dre-screen.
+   ========================================================================== */
+
+/* ---------- Layout geral ---------- */
+.dre-screen { padding: 16px; }
+.dre-screen .dre-head { margin-bottom: 12px; }
+
+/* ===== CABEÇALHO REORGANIZADO (título/descrição à esquerda, abas à direita) ===== */
+.dre-screen .dre-head.dre-head--grid{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:12px;
+  align-items:end;
+  margin-bottom:12px;
+}
+.dre-screen .dre-head__title h1{ margin:0; line-height:1.1; }
+.dre-screen .dre-head__desc{ margin:6px 0 0; max-width:72ch; }
+.dre-screen .dre-head__tabs{ align-self:center; }
+.dre-screen .dre-tabs{ display:flex; gap:8px; }
+.dre-screen .dre-tabs .tab{ padding:8px 12px; margin:0; border:1px solid #e5e7eb; background:#fff; border-radius:8px; cursor:pointer; }
+.dre-screen .dre-tabs .tab.active{ background:#111827; color:#fff; border-color:#111827; }
+
+@media (max-width: 900px){
+  .dre-screen .dre-head.dre-head--grid{
+    grid-template-columns: 1fr;
+    align-items:start;
+  }
+  .dre-screen .dre-head__tabs{ justify-self:start; }
+}
+
+/* ---------- Cartões / controles ---------- */
+.dre-screen .dre-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+.dre-screen .dre-controls { display:flex; gap:12px; align-items:flex-end; margin-bottom:8px; flex-wrap:wrap; }
+.dre-screen .grow { flex:1; }
+.dre-screen .input { border:1px solid #e5e7eb; border-radius:8px; padding:6px 8px; background:#fff; color:#111827; }
+.dre-screen .btn { border:1px solid #111827; color:#111827; background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; }
+.dre-screen .btn:hover { background:#111827; color:#fff; }
+.dre-screen .skeleton { height:120px; background:linear-gradient(90deg,#f3f4f6,#e5e7eb,#f3f4f6); border-radius:8px; animation: dre-skel 1.2s linear infinite; }
+@keyframes dre-skel { 0%{background-position:0 0;} 100%{background-position:200% 0;} }
+.dre-screen .muted { color:#6b7280; }
+.dre-screen .small { font-size:.875rem; }
+.dre-screen .msg-error { color:#b91c1c; font-weight:600; white-space:pre-wrap; }
+
+/* ---------- Banner educativo ---------- */
+.dre-screen .info-banner { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; }
+
+/* ---------- Alternador de modo (mensal/trimestral/anual) ---------- */
+.dre-screen .view-toggle { display:flex; gap:8px; }
+.dre-screen .chip { border:1px solid #e5e7eb; padding:6px 10px; border-radius:999px; background:#fff; cursor:pointer; }
+.dre-screen .chip.active { background:#111827; color:#fff; border-color:#111827; }
+
+/* ---------- KPIs (resumo amigável) ---------- */
+.dre-screen .kpi-grid { display:grid; grid-template-columns: repeat(5, minmax(140px,1fr)); gap:10px; }
+.dre-screen .kpi { background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:6px; box-shadow:0 1px 0 rgba(17,24,39,.02); }
+.dre-screen .kpi span { color:#6b7280; font-size:.95rem; }
+.dre-screen .kpi strong { font-size:1.1rem; color:#111827; }
+.dre-screen .kpi.hi { outline:1px solid rgba(17,24,39,.16); }
+.dre-screen .kpi.ok { outline:1px solid rgba(34,197,94,.35); }
+.dre-screen .kpi.warn { outline:1px solid rgba(245,158,11,.35); }
+
+/* ---------- Tabela (DRE) ---------- */
+.dre-screen .table-card { border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+.dre-screen .table-scroll { overflow-x:auto; position:relative; }
+.dre-screen .table-report { width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; }
+
+.dre-screen .table-report th,
+.dre-screen .table-report td { border-bottom:1px solid #e5e7eb; padding:10px 12px; white-space:nowrap; background:#fff; min-width:96px; color:#111827; }
+
+.dre-screen .table-report thead th { position:sticky; top:0; z-index:3; background:#f9fafb; }
+.dre-screen .zhead { font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:#111827; }
+
+.dre-screen .sticky-left { position:sticky; left:0; z-index:4; min-width:260px; background:#fff; }
+.dre-screen .sticky-right { position:sticky; right:0; z-index:4; min-width:120px; background:#fff; }
+
+.dre-screen .tfoot td { font-weight:700; background:#f9fafb; }
+.dre-screen .tar { text-align:right; }
+
+.dre-screen .table-report tr.hi td { background:#fafafa; font-weight:700; }
+
+/* ---------- Balanço — listas e cartões ---------- */
+.dre-screen .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
+.dre-screen .card { border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fff; display:flex; flex-direction:column; gap:8px; }
+.dre-screen .list { list-style:none; margin:0; padding:0; }
+.dre-screen .list li { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #eee; }
+.dre-screen .list.scroll { max-height:320px; overflow:auto; }
+.dre-screen .row { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border:1px dashed #eee; border-radius:8px; }
+.dre-screen .row-col { display:flex; flex-direction:column; gap:2px; }
+.dre-screen .row-val { font-weight:700; color:#111827; }
+
+/* ---------- Dicas e notas ---------- */
+.dre-screen .hint { color:#6b7280; font-size:12px; padding:8px 12px; }
+
+/* ---------- Caixa de debug (erro 500 do balanço) ---------- */
+.dre-screen .debug-box { margin-top:8px; padding:8px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; max-height:240px; overflow:auto; color:#374151; }
+
+/* ---------- Responsividade ---------- */
+@media (max-width: 1024px) {
+  .dre-screen .kpi-grid { grid-template-columns: repeat(3, minmax(140px,1fr)); }
+  .dre-screen .grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .dre-screen .kpi-grid { grid-template-columns: repeat(2, minmax(140px,1fr)); }
+  .dre-screen .sticky-left { min-width: 200px; }
+  .dre-screen .sticky-right { min-width: 100px; }
+}

@@ -1,0 +1,46 @@
+----############################### Table: public.classificacao_balanco ###############################
+
+-- DROP TABLE IF EXISTS public.classificacao_balanco;
+
+CREATE TABLE IF NOT EXISTS public.classificacao_balanco
+(
+    id integer NOT NULL DEFAULT nextval('classificacao_balanco_id_seq'::regclass),
+    codigo text COLLATE pg_catalog."default" NOT NULL,
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    grupo text COLLATE pg_catalog."default" NOT NULL,
+    ordem integer NOT NULL,
+    CONSTRAINT classificacao_balanco_pkey PRIMARY KEY (id),
+    CONSTRAINT classificacao_balanco_nome_uk UNIQUE (nome),
+    CONSTRAINT classificacao_balanco_grupo_check CHECK (grupo = ANY (ARRAY['ATIVO'::text, 'PASSIVO'::text, 'PL'::text]))
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.classificacao_balanco
+    OWNER to postgres;
+
+COMMENT ON TABLE public.classificacao_balanco
+    IS 'Domínio de classificações do Balanço Patrimonial (Ativo, Passivo, PL).';
+	
+--############################### SEEDS ###############################
+
+BEGIN;
+
+-- Apaga registros existentes (FK em conta está com ON DELETE SET NULL)
+DELETE FROM public.classificacao_balanco;
+
+-- Seeds completos (com IDs fixos e ordem clássica para Balanço)
+INSERT INTO public.classificacao_balanco (id, codigo, nome, grupo, ordem) VALUES
+  (1, '1.1', 'Ativo Circulante',         'ATIVO',   1),
+  (2, '1.2', 'Ativo Não Circulante',     'ATIVO',   2),
+  (3, '2.1', 'Passivo Circulante',       'PASSIVO', 3),
+  (4, '2.2', 'Passivo Não Circulante',   'PASSIVO', 4),
+  (5, '3.1', 'Patrimônio Líquido',       'PL',      5);
+
+-- Realinha a sequence para o próximo INSERT automático
+SELECT setval('public.classificacao_balanco_id_seq',
+              (SELECT COALESCE(MAX(id), 1) FROM public.classificacao_balanco),
+              true);
+
+COMMIT;
+

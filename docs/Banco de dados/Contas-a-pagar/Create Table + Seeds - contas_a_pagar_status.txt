@@ -1,0 +1,43 @@
+--###################################### Table: public.contas_a_pagar_status ######################################
+
+-- DROP TABLE IF EXISTS public.contas_a_pagar_status;
+
+CREATE TABLE IF NOT EXISTS public.contas_a_pagar_status
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    codigo text COLLATE pg_catalog."default" NOT NULL,
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    ativo boolean NOT NULL DEFAULT true,
+    CONSTRAINT contas_a_pagar_status_pkey PRIMARY KEY (id),
+    CONSTRAINT contas_a_pagar_status_codigo_key UNIQUE (codigo),
+    CONSTRAINT contas_a_pagar_status_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.contas_a_pagar_status
+    OWNER to postgres;
+
+select * from contas_a_pagar_status
+
+###################################### SEEDS ######################################
+BEGIN;
+
+-- ATENÇÃO: se existirem lançamentos em public.contas_a_pagar referenciando estes status,
+-- o DELETE pode falhar (FK NO ACTION). Execute em ambiente limpo ou use UPSERT.
+DELETE FROM public.contas_a_pagar_status;
+
+INSERT INTO public.contas_a_pagar_status (codigo, nome, ativo) VALUES
+  ('ABERTO',    'aberto',    true),
+  ('PAGO',      'pago',      true),
+  ('ATRASADO',  'atrasado',  true),
+  ('CANCELADO', 'cancelado', true);
+
+-- Realinha o IDENTITY para o próximo valor automaticamente
+SELECT setval(
+  pg_get_serial_sequence('public.contas_a_pagar_status','id'),
+  COALESCE((SELECT MAX(id) FROM public.contas_a_pagar_status), 1),
+  true
+);
+
+COMMIT;

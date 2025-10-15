@@ -1,0 +1,7 @@
+Backend: http://localhost:8000/health
+
+Frontend: http://localhost:5173
+
+pgAdmin: http://localhost:5050
+	user: admin@example.com
+	senha: admin

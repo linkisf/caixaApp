@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16
+    container_name: postgres
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 741852963
+      POSTGRES_DB: caixaAppDB
+      TZ: America/Bahia
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d caixaAppDB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      TZ: America/Bahia
+    ports: ["5050:80"]
+    depends_on: [ db ]
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin]
+
+  backend:
+    build:
+      context: ./backend
+      #target: dev           # precisa existir no Dockerfile do backend
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: America/Bahia
+    volumes:
+      - ./backend:/app
+      - /app/node_modules 
+    ports: ["8000:8000"]
+    depends_on: [ db ]
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_BASE_URL=/api
+      # - VITE_API_BASE_URL=http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  pgadmin_data:

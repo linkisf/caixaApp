@@ -1,0 +1,22 @@
+{
+  "name": "caixa-backend-knex",
+  "version": "1.0.0",
+  "description": "API do Caixa App (Express + Knex + PostgreSQL)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "migrate:make": "knex migrate:make",
+    "migrate:latest": "knex migrate:latest",
+    "seed:run": "knex seed:run"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "knex": "^3.1.0",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  }
+}

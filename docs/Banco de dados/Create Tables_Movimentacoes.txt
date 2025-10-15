@@ -1,0 +1,244 @@
+--###################################### Table: public.contas_corrente_movimento ######################################
+
+-- DROP TABLE IF EXISTS public.contas_corrente_movimento;
+
+CREATE TABLE IF NOT EXISTS public.contas_corrente_movimento
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    data date NOT NULL DEFAULT CURRENT_DATE,
+    conta_id uuid,
+    conta_corrente_id uuid NOT NULL,
+    valor_centavos integer NOT NULL,
+    direcao mov_direcao NOT NULL,
+    forma_pagamento_id integer,
+    descricao text COLLATE pg_catalog."default",
+    criado_em timestamp with time zone NOT NULL DEFAULT now(),
+    transferencia_id uuid,
+    CONSTRAINT contas_corrente_movimento_pkey PRIMARY KEY (id),
+    CONSTRAINT contas_corrente_movimento_transferencia_id_fkey FOREIGN KEY (transferencia_id)
+        REFERENCES public.transferencias (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_ccm_conta FOREIGN KEY (conta_id)
+        REFERENCES public.conta (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_ccm_corrente FOREIGN KEY (conta_corrente_id)
+        REFERENCES public.contas_corrente (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_ccm_forma_pagto FOREIGN KEY (forma_pagamento_id)
+        REFERENCES public.forma_pagamento (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT ccm_transfer_sem_conta CHECK (transferencia_id IS NULL OR conta_id IS NULL AND forma_pagamento_id IS NULL),
+    CONSTRAINT contas_corrente_movimento_valor_centavos_check CHECK (valor_centavos > 0)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.contas_corrente_movimento
+    OWNER to postgres;
+-- Index: brin_ccm_data
+
+-- DROP INDEX IF EXISTS public.brin_ccm_data;
+
+CREATE INDEX IF NOT EXISTS brin_ccm_data
+    ON public.contas_corrente_movimento USING brin
+    (data)
+    WITH (pages_per_range=128, autosummarize=False)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_conta
+
+-- DROP INDEX IF EXISTS public.idx_ccm_conta;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_conta
+    ON public.contas_corrente_movimento USING btree
+    (conta_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_corrente_data
+
+-- DROP INDEX IF EXISTS public.idx_ccm_corrente_data;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_corrente_data
+    ON public.contas_corrente_movimento USING btree
+    (conta_corrente_id ASC NULLS LAST, data ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_data
+
+-- DROP INDEX IF EXISTS public.idx_ccm_data;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_data
+    ON public.contas_corrente_movimento USING btree
+    (data ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_data_operacionais
+
+-- DROP INDEX IF EXISTS public.idx_ccm_data_operacionais;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_data_operacionais
+    ON public.contas_corrente_movimento USING btree
+    (data ASC NULLS LAST, direcao ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default
+    WHERE conta_id IS NOT NULL;
+-- Index: idx_ccm_forma_pagto
+
+-- DROP INDEX IF EXISTS public.idx_ccm_forma_pagto;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_forma_pagto
+    ON public.contas_corrente_movimento USING btree
+    (forma_pagamento_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Trigger: t_ccm_update_saldo
+
+-- DROP TRIGGER IF EXISTS t_ccm_update_saldo ON public.contas_corrente_movimento;
+
+CREATE OR REPLACE TRIGGER t_ccm_update_saldo
+    AFTER INSERT OR DELETE OR UPDATE 
+    ON public.contas_corrente_movimento
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_ccm_update_saldo();
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--###################################### Table: public.ccm_saida_fornecedor ######################################
+
+-- DROP TABLE IF EXISTS public.ccm_saida_fornecedor;
+
+CREATE TABLE IF NOT EXISTS public.ccm_saida_fornecedor
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    movimento_id uuid NOT NULL,
+    fornecedor_id integer NOT NULL,
+    criado_em timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT ccm_saida_fornecedor_pkey PRIMARY KEY (id),
+    CONSTRAINT ccm_saida_fornecedor_movimento_id_key UNIQUE (movimento_id),
+    CONSTRAINT ccm_saida_fornecedor_fornecedor_id_fkey FOREIGN KEY (fornecedor_id)
+        REFERENCES public.fornecedores (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT ccm_saida_fornecedor_movimento_id_fkey FOREIGN KEY (movimento_id)
+        REFERENCES public.contas_corrente_movimento (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.ccm_saida_fornecedor
+    OWNER to postgres;
+-- Index: idx_ccm_saida_fornecedor_forn
+
+-- DROP INDEX IF EXISTS public.idx_ccm_saida_fornecedor_forn;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_saida_fornecedor_forn
+    ON public.ccm_saida_fornecedor USING btree
+    (fornecedor_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_saida_fornecedor_mov
+
+-- DROP INDEX IF EXISTS public.idx_ccm_saida_fornecedor_mov;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_saida_fornecedor_mov
+    ON public.ccm_saida_fornecedor USING btree
+    (movimento_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_exclusividade_ccm_forn
+
+-- DROP TRIGGER IF EXISTS trg_exclusividade_ccm_forn ON public.ccm_saida_fornecedor;
+
+CREATE OR REPLACE TRIGGER trg_exclusividade_ccm_forn
+    BEFORE INSERT OR UPDATE 
+    ON public.ccm_saida_fornecedor
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_ccm_exclusividade_vinculo();
+
+-- Trigger: trg_validar_saida_ccm_forn
+
+-- DROP TRIGGER IF EXISTS trg_validar_saida_ccm_forn ON public.ccm_saida_fornecedor;
+
+CREATE OR REPLACE TRIGGER trg_validar_saida_ccm_forn
+    BEFORE INSERT OR UPDATE 
+    ON public.ccm_saida_fornecedor
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_ccm_vinculo_validar_saida();
+	
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--###################################### Table: public.ccm_saida_funcionario ######################################
+
+-- DROP TABLE IF EXISTS public.ccm_saida_funcionario;
+
+CREATE TABLE IF NOT EXISTS public.ccm_saida_funcionario
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    movimento_id uuid NOT NULL,
+    funcionario_id integer NOT NULL,
+    criado_em timestamp with time zone NOT NULL DEFAULT now(),
+    tipo_saida_id integer NOT NULL,
+    CONSTRAINT ccm_saida_funcionario_pkey PRIMARY KEY (id),
+    CONSTRAINT ccm_saida_funcionario_movimento_id_key UNIQUE (movimento_id),
+    CONSTRAINT ccm_saida_funcionario_funcionario_id_fkey FOREIGN KEY (funcionario_id)
+        REFERENCES public.funcionarios (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT ccm_saida_funcionario_movimento_id_fkey FOREIGN KEY (movimento_id)
+        REFERENCES public.contas_corrente_movimento (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT ccm_saida_funcionario_tipo_saida_id_fkey FOREIGN KEY (tipo_saida_id)
+        REFERENCES public.funcionario_tipo_saida (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.ccm_saida_funcionario
+    OWNER to postgres;
+-- Index: idx_ccm_saida_funcionario_func
+
+-- DROP INDEX IF EXISTS public.idx_ccm_saida_funcionario_func;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_saida_funcionario_func
+    ON public.ccm_saida_funcionario USING btree
+    (funcionario_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_ccm_saida_funcionario_mov
+
+-- DROP INDEX IF EXISTS public.idx_ccm_saida_funcionario_mov;
+
+CREATE INDEX IF NOT EXISTS idx_ccm_saida_funcionario_mov
+    ON public.ccm_saida_funcionario USING btree
+    (movimento_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_exclusividade_ccm_func
+
+-- DROP TRIGGER IF EXISTS trg_exclusividade_ccm_func ON public.ccm_saida_funcionario;
+
+CREATE OR REPLACE TRIGGER trg_exclusividade_ccm_func
+    BEFORE INSERT OR UPDATE 
+    ON public.ccm_saida_funcionario
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_ccm_exclusividade_vinculo();
+
+-- Trigger: trg_validar_saida_ccm_func
+
+-- DROP TRIGGER IF EXISTS trg_validar_saida_ccm_func ON public.ccm_saida_funcionario;
+
+CREATE OR REPLACE TRIGGER trg_validar_saida_ccm_func
+    BEFORE INSERT OR UPDATE 
+    ON public.ccm_saida_funcionario
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_ccm_vinculo_validar_saida();	

@@ -1,0 +1,52 @@
+--###################################### Table: public.funcionario_tipo_saida ######################################
+
+-- DROP TABLE IF EXISTS public.funcionario_tipo_saida;
+
+CREATE TABLE IF NOT EXISTS public.funcionario_tipo_saida
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    ativo boolean NOT NULL DEFAULT true,
+    criado_em timestamp with time zone NOT NULL DEFAULT now(),
+    modificado_em timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT funcionario_tipo_saida_pkey PRIMARY KEY (id),
+    CONSTRAINT funcionario_tipo_saida_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.funcionario_tipo_saida
+    OWNER to postgres;
+
+-- Trigger: trg_touch_modificado_em
+
+-- DROP TRIGGER IF EXISTS trg_touch_modificado_em ON public.funcionario_tipo_saida;
+
+CREATE OR REPLACE TRIGGER trg_touch_modificado_em
+    BEFORE UPDATE 
+    ON public.funcionario_tipo_saida
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trg_touch_modificado_em();
+	
+
+###################################### SEEDS ######################################
+BEGIN;
+
+-- ATENÇÃO: se houver FKs (ex.: contas_a_pagar.funcionario_tipo_saida_id),
+-- o DELETE pode falhar. Rode em ambiente limpo ou ajuste dependentes antes.
+DELETE FROM public.funcionario_tipo_saida;
+
+-- Reinicia o contador do IDENTITY para 1 (opcional, mas útil)
+ALTER TABLE public.funcionario_tipo_saida
+  ALTER COLUMN id RESTART WITH 1;
+
+-- Seeds (não informe o ID)
+INSERT INTO public.funcionario_tipo_saida (nome, ativo) VALUES
+  ('Salário',                true),
+  ('Adiantamento quinzenal', true),
+  ('Vale',                   true),
+  ('Dobra',                  true),
+  ('Bonificação',            true);
+
+COMMIT;
+

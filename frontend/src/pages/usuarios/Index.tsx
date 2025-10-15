@@ -1,0 +1,1 @@
+export default function UsuariosIndex() { return <div>Usuarios - Lista</div> }

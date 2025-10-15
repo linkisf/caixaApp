@@ -1,0 +1,39 @@
+--###################################### Table: public.conta_direcao ######################################
+
+-- DROP TABLE IF EXISTS public.conta_direcao;
+
+CREATE TABLE IF NOT EXISTS public.conta_direcao
+(
+    id integer NOT NULL DEFAULT nextval('conta_direcao_id_seq'::regclass),
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT conta_direcao_pkey PRIMARY KEY (id),
+    CONSTRAINT conta_direcao_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.conta_direcao
+    OWNER to postgres;
+	
+
+###################################### SEEDS ######################################
+BEGIN;
+
+-- Apaga registros existentes
+-- Atenção: se houver FKs em public.conta apontando para conta_direcao,
+-- este DELETE pode falhar (FK RESTRICT). Execute em ambiente limpo
+-- ou ajuste/atualize as contas antes.
+DELETE FROM public.conta_direcao;
+
+-- Seeds
+INSERT INTO public.conta_direcao (id, nome) VALUES
+  (1, 'Entrada'),
+  (2, 'Saida'),
+  (3, 'Neutra');
+
+-- Realinha a sequence
+SELECT setval('public.conta_direcao_id_seq',
+              (SELECT COALESCE(MAX(id), 1) FROM public.conta_direcao),
+              true);
+
+COMMIT;

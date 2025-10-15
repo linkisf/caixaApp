@@ -1,0 +1,240 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  color: #111827;
+  background-color: #f8f9fb;
+  font-family: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+}
+
+/* Cards (sem hover por padrão) */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+/* Aplicar hover somente nos cards de Boletos da semana */
+.boleto-card:hover {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+.nohover:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transform: none;
+}
+
+/* Header */
+.head-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.head-left .sub {
+  font-size: 12px;
+  color: #6B7280;
+}
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Buttons */
+.btn {
+  background: #f3f4f6;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background .2s ease-in-out;
+}
+.btn:hover { background: #e5e7eb; }
+.btn.primary {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+.btn.primary:hover { background: #1d4ed8; }
+
+.btn-group { display: flex; gap: 8px; }
+
+/* Inputs */
+.input, select, textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  transition: border .2s ease-in-out, box-shadow .2s ease-in-out;
+}
+.input:focus, select:focus, textarea:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+.label { font-size: 13px; font-weight: 500; color: #374151; }
+.label.inline { display: flex; align-items: center; gap: 8px; }
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+.table th {
+  text-align: left;
+  font-size: 13px;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 6px 8px;
+}
+.table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+}
+.neg { color: #EF4444; font-weight: 700; }
+.pos { color: #10B981; font-weight: 700; }
+
+/* Empty & errors */
+.empty { padding: 16px; color: #9ca3af; font-size: 14px; text-align: center; }
+.field-error { margin-top: 8px; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; padding: 8px; border-radius: 8px; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  padding: 16px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.modal-header h4 { margin: 0; margin-right: auto; }
+.modal-footer { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+
+/* KPI grid */
+.title-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.hint { font-size: 12px; color: #6B7280; }
+.kpi-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.kpi { padding: 14px; border-radius: 14px; }
+.kpi-label { font-size: 12px; color: #6B7280; }
+.kpi-value { font-size: 22px; font-weight: 800; }
+
+/* Lista e grupos */
+.group-block { margin-bottom: 12px; }
+.group-head { display: flex; justify-content: space-between; align-items: baseline; }
+.list { margin-top: 8px; list-style: none; padding: 0; }
+
+.rowline {
+  display: grid;
+  grid-template-columns: 1fr 120px 120px 120px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid #E5E7EB;
+}
+
+/* Por fornecedor — inclui coluna Conta */
+.list-forn .rowline.forn {
+  grid-template-columns: 1fr 120px 180px 120px 140px auto; /* desc | venc | conta | valor | destino | btn */
+}
+
+/* Boletos cards */
+.boletos-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.boleto-card {
+  text-align: left;
+  padding: 14px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+}
+.boleto-top { display: flex; justify-content: space-between; align-items: center; }
+.boleto-total { font-size: 22px; font-weight: 800; }
+
+/* Progress bar */
+.progress-bar {
+  height: 8px;
+  background: #F3F4F6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 8px;
+  background: #EF4444;
+  border-radius: 999px;
+}
+
+/* Info bloco no modal de pagamento */
+.info-bloc { margin-bottom: 8px; }
+.info-title { font-weight: 700; }
+.info-sub { color: #6B7280; }
+.info-value { margin-top: 4px; font-size: 18px; font-weight: 800; }
+.info-desc { margin-top: 4px; }
+
+
+/* Cards clicáveis: cursor e leve ênfase no hover/focus */
+.card.clickable {
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.card.clickable:hover,
+.card.clickable:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+
+/* KPI cards básicos mantêm padding e tipografia já usados */
+.card.kpi .kpi-label { opacity: .8; font-size: .9rem; }
+.card.kpi .kpi-value { font-weight: 700; font-size: 1.3rem; }
+
+/* Alertas */
+.card.alert.warn   { border-left: 4px solid #efb600; background: #fff8e1; }
+.card.alert.danger { border-left: 4px solid #e11d48; background: #fff1f2; }
+.card.alert .kpi-label { font-weight: 600; }
+
+/* Boleto cards também devem ser clicáveis */
+.boleto-card.clickable { cursor: pointer; }
+
+/* (Demais estilos existentes permanecem) */

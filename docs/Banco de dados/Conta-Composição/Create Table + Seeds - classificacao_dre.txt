@@ -1,0 +1,47 @@
+--###################################### Table: public.classificacao_dre ######################################
+
+-- DROP TABLE IF EXISTS public.classificacao_dre;
+
+CREATE TABLE IF NOT EXISTS public.classificacao_dre
+(
+    id integer NOT NULL DEFAULT nextval('classificacao_dre_id_seq'::regclass),
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    ordem integer NOT NULL,
+    CONSTRAINT classificacao_dre_pkey PRIMARY KEY (id),
+    CONSTRAINT classificacao_dre_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.classificacao_dre
+    OWNER to postgres;
+	
+--###################################### SEEDS ######################################	
+	
+BEGIN;
+
+-- Apaga os registros existentes
+-- ATENÇÃO: se houver contas referenciando classificacao_dre (FK NO ACTION),
+-- este DELETE falhará. Execute antes de popular 'conta' ou use UPSERT.
+DELETE FROM public.classificacao_dre;
+
+-- Insere os seeds (IDs fixos para previsibilidade)
+INSERT INTO public.classificacao_dre (id, nome, ordem) VALUES
+  (1,  'Receita Operacional Bruta', 1),
+  (2,  'Impostos e Devoluções',     2),
+  (3,  'Custo da Mercadoria',       3),
+  (4,  'Pessoal',                   4),
+  (5,  'Gerais e Administrativas',  5),
+  (6,  'Utilidades',                6),
+  (7,  'Aluguel, Condomínio e IPTU',7),
+  (8,  'Propaganda e Marketing',    8),
+  (9,  'Pro labore',                9),
+  (10, 'Receitas Financeiras',     10),
+  (11, 'Despesas Financeiras',     11);
+
+-- Realinha a sequence para o próximo INSERT automático
+SELECT setval('public.classificacao_dre_id_seq',
+              (SELECT COALESCE(MAX(id), 1) FROM public.classificacao_dre),
+              true);
+
+COMMIT;

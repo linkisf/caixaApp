@@ -1,0 +1,39 @@
+--############################### Table: public.tipo_conta ###############################
+
+-- DROP TABLE IF EXISTS public.tipo_conta;
+
+CREATE TABLE IF NOT EXISTS public.tipo_conta
+(
+    id integer NOT NULL DEFAULT nextval('tipo_conta_id_seq'::regclass),
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT tipo_conta_pkey PRIMARY KEY (id),
+    CONSTRAINT tipo_conta_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.tipo_conta
+    OWNER to postgres;
+
+
+############################### SEEDS ###############################
+
+BEGIN;
+
+-- 1) Apaga todos os registros existentes
+DELETE FROM public.tipo_conta;
+
+-- 2) Insere os registros padronizados
+INSERT INTO public.tipo_conta (id, nome) VALUES
+  (1, 'Ativo'),
+  (2, 'Resultado (Receita/Despesa)'),
+  (3, 'Passivo'),
+  (4, 'Patrimônio Líquido');
+
+-- 3) Realinha a sequence para o próximo INSERT automático
+SELECT setval('public.tipo_conta_id_seq',
+              (SELECT COALESCE(MAX(id), 1) FROM public.tipo_conta),
+              true);
+
+COMMIT;
+

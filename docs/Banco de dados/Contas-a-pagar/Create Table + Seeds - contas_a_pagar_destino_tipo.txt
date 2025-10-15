@@ -1,0 +1,42 @@
+--###################################### Table: public.contas_a_pagar_destino_tipo ######################################
+
+-- DROP TABLE IF EXISTS public.contas_a_pagar_destino_tipo;
+
+CREATE TABLE IF NOT EXISTS public.contas_a_pagar_destino_tipo
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    codigo text COLLATE pg_catalog."default" NOT NULL,
+    nome text COLLATE pg_catalog."default" NOT NULL,
+    ativo boolean NOT NULL DEFAULT true,
+    CONSTRAINT contas_a_pagar_destino_tipo_pkey PRIMARY KEY (id),
+    CONSTRAINT contas_a_pagar_destino_tipo_codigo_key UNIQUE (codigo),
+    CONSTRAINT contas_a_pagar_destino_tipo_nome_key UNIQUE (nome)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.contas_a_pagar_destino_tipo
+    OWNER to postgres;
+	
+###################################### SEEDS ######################################
+BEGIN;
+
+-- Apaga registros anteriores
+DELETE FROM public.contas_a_pagar_destino_tipo;
+
+-- Seeds (códigos estáveis para uso no backend/UI)
+INSERT INTO public.contas_a_pagar_destino_tipo (codigo, nome, ativo) VALUES
+  ('FUNC',    'Funcionários',  true),
+  ('FORN',    'Fornecedores',  true),
+  ('IMPOSTO', 'Impostos',      true),
+  ('ADM',     'Administrativo',true),
+  ('SERV',    'Serviços',      true);  -- categoria adicional sugerida
+
+-- Realinha o contador do IDENTITY (opcional, mas útil para reprodutibilidade)
+SELECT setval(
+  pg_get_serial_sequence('public.contas_a_pagar_destino_tipo','id'),
+  COALESCE((SELECT MAX(id) FROM public.contas_a_pagar_destino_tipo), 1),
+  true
+);
+
+COMMIT;

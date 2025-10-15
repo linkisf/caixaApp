@@ -1,0 +1,319 @@
+BEGIN;
+
+-- =====================================================================
+-- PREPARO
+-- =====================================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- =====================================================================
+-- TRUNCATE (ordem segura)
+-- =====================================================================
+TRUNCATE TABLE
+  public.contas_corrente_movimento,
+  public.transferencias,
+  public.contas_corrente,
+  public.conta,
+  public.classificacao_dre,
+  public.classificacao_balanco,
+  public.tipo_conta,
+  public.natureza,
+  public.forma_pagamento,
+  public.centro_custo
+RESTART IDENTITY CASCADE;
+
+-- =====================================================================
+-- SEEDS: DOMÍNIOS / REFERÊNCIAS
+-- =====================================================================
+
+-- tipo_conta
+INSERT INTO public.tipo_conta (id, nome) VALUES
+  (1, 'Ativo'),
+  (2, 'Resultado (Receita/Despesa)'),
+  (3, 'Passivo'),
+  (4, 'Patrimônio Líquido');
+
+-- natureza
+INSERT INTO public.natureza (id, nome, sinal) VALUES
+  (1, 'Operacional', 0),
+  (2, 'Financeira',  0);
+
+-- classificacao_dre
+INSERT INTO public.classificacao_dre (nome, ordem) VALUES
+  ('Receita Operacional Bruta', 1),
+  ('Impostos e Devoluções',     2),
+  ('Custo da Mercadoria',       3),
+  ('Pessoal',                   4),
+  ('Gerais e Administrativas',  5),
+  ('Utilidades',                6),
+  ('Aluguel, Condomínio e IPTU',7),
+  ('Propaganda e Marketing',    8),
+  ('Pro labore',                9),
+  ('Receitas Financeiras',     10),
+  ('Despesas Financeiras',     11);
+
+-- classificacao_balanco (com código, grupo e ordem)
+INSERT INTO public.classificacao_balanco (codigo, nome, grupo, ordem) VALUES
+  ('1.1', 'Ativo Circulante',   'ATIVO',   1),
+  ('2.1', 'Passivo Circulante', 'PASSIVO', 2),
+  ('3.1', 'Patrimônio Líquido', 'PL',      3);
+
+-- forma_pagamento
+INSERT INTO public.forma_pagamento (id, nome) VALUES
+  (1, 'Dinheiro'),
+  (2, 'PIX'),
+  (3, 'Cartão de Débito'),
+  (4, 'Cartão de Crédito'),
+  (5, 'Boleto');
+
+-- centro_custo
+INSERT INTO public.centro_custo (codigo, nome, ativo) VALUES
+  ('ADM', 'Administrativo', true),
+  ('OPR', 'Operações',      true),
+  ('MKT', 'Marketing',      true);
+
+-- =====================================================================
+-- PLANO DE CONTAS (conforme solicitado)
+-- =====================================================================
+WITH dre AS (SELECT nome, id FROM public.classificacao_dre),
+     bal AS (SELECT nome, id FROM public.classificacao_balanco)
+INSERT INTO public.conta
+  (codigo, nome, nivel, tipo_conta_id, classificacao_dre_id, classificacao_balanco_id, natureza_id, ativa)
+VALUES
+-- ENTRADAS
+('3.1.1', 'Entradas',                     1, 2, NULL,                                                      (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.2', 'Outras Receitas',              1, 2, NULL,                                                      (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.3', 'Rendimentos de Aplicação',     1, 2, (SELECT id FROM dre WHERE nome='Receitas Financeiras'),     (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 2, true),
+('3.1.4', 'Transferência (Entrada)',      1, 2, (SELECT id FROM dre WHERE nome='Receita Operacional Bruta'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.5', 'Vendas via Loja Virtual',      1, 2, (SELECT id FROM dre WHERE nome='Receita Operacional Bruta'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.6', 'Vendas via OS',                1, 2, (SELECT id FROM dre WHERE nome='Receita Operacional Bruta'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.7', 'Vendas via PDV',               1, 2, (SELECT id FROM dre WHERE nome='Receita Operacional Bruta'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.1.8', 'Vendas via Pedido',            1, 2, (SELECT id FROM dre WHERE nome='Receita Operacional Bruta'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+
+-- SAÍDAS
+('3.2.1', 'Abatimentos',                  1, 2, (SELECT id FROM dre WHERE nome='Impostos e Devoluções'),   (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.2', 'Água',                         1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.3', 'Aportes ou Empréstimos',       1, 2, (SELECT id FROM dre WHERE nome='Receitas Financeiras'),    (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 2, true),
+('3.2.4', 'Benefícios Salariais',         1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.5', 'Combustível e Pedágios',       1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.6', 'Contabilidade',                1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.7', 'Embalagem',                    1, 2, (SELECT id FROM dre WHERE nome='Custo da Mercadoria'),     (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.8', 'Encargos Salariais',           1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.9', 'Honorários Advocatícios',      1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.10','Impostos',                     1, 2, (SELECT id FROM dre WHERE nome='Impostos e Devoluções'),   (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.11','Internet',                     1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.12','IPTU',                         1, 2, (SELECT id FROM dre WHERE nome='Aluguel, Condomínio e IPTU'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'),1, true),
+('3.2.13','Luz',                          1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.14','Manutenção',                   1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.15','Material de Escritório',       1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.16','Matéria-Prima',                1, 2, (SELECT id FROM dre WHERE nome='Custo da Mercadoria'),     (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.17','Mercadoria para Revenda',      1, 2, (SELECT id FROM dre WHERE nome='Custo da Mercadoria'),     (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.18','Outras Despesas',              1, 2, NULL,                                                       (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.19','Pro labore',                   1, 2, (SELECT id FROM dre WHERE nome='Pro labore'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.20','Propaganda',                   1, 2, (SELECT id FROM dre WHERE nome='Propaganda e Marketing'),  (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.21','Saídas',                       1, 2, NULL,                                                       (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.22','Salários',                     1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.23','Segurança',                    1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.24','Seguros em Geral',             1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.25','Serviços de Entrega',          1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.26','Tarifas Bancárias',            1, 2, (SELECT id FROM dre WHERE nome='Despesas Financeiras'),    (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 2, true),
+('3.2.27','Telefone Celular',             1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.28','Telefone Fixo',                1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.29','Transferência (Saída)',        1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.30','TV a Cabo',                    1, 2, (SELECT id FROM dre WHERE nome='Utilidades'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.31','Viagem e Hospedagem',          1, 2, (SELECT id FROM dre WHERE nome='Gerais e Administrativas'),(SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.32','Casa - gastos diários',        1, 2, (SELECT id FROM dre WHERE nome='Pro labore'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.33','Reforma Casa',                 1, 2, (SELECT id FROM dre WHERE nome='Pro labore'),              (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.34','Adiantamento salarial (Quinzena)',1,2,(SELECT id FROM dre WHERE nome='Pessoal'),                (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.35','Adiantamento salarial (Vale)', 1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.36','Dobra funcionário',            1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.37','Pagamento semanal',            1, 2, (SELECT id FROM dre WHERE nome='Pessoal'),                 (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true),
+('3.2.38','Ativos e Equipamentos Próprios',1,2,(SELECT id FROM dre WHERE nome='Gerais e Administrativas'), (SELECT id FROM bal WHERE nome='Patrimônio Líquido'), 1, true);
+
+-- =====================================================================
+-- CONTAS-CORRENTE
+-- =====================================================================
+INSERT INTO public.contas_corrente
+  (id, nome, banco, agencia, numero, tipo, saldo_inicial_centavos, saldo_atual_centavos, ativa, criado_em, modificado_em)
+VALUES
+  (gen_random_uuid(), 'Conta A - Operações', 'Banco X', '0001', '12345-6', 'interna', 0, 0, true, now(), now()),
+  (gen_random_uuid(), 'Conta B - Reserva',   'Banco Y', '0001', '65432-1', 'interna', 0, 0, true, now(), now());
+
+-- =====================================================================
+-- TRIGGERS DE TRANSFERÊNCIAS
+-- =====================================================================
+CREATE OR REPLACE FUNCTION public.trg_transfer_cria_mov() 
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO public.contas_corrente_movimento
+    (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+  VALUES
+    (NEW.data, NULL::uuid, NEW.origem_conta_corrente_id,  NEW.valor_centavos, 'pago'::mov_direcao,     NULL::int, COALESCE(NEW.descricao,'Transferência'), NEW.id);
+
+  INSERT INTO public.contas_corrente_movimento
+    (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+  VALUES
+    (NEW.data, NULL::uuid, NEW.destino_conta_corrente_id, NEW.valor_centavos, 'recebido'::mov_direcao, NULL::int, COALESCE(NEW.descricao,'Transferência'), NEW.id);
+
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 't_transferencias_ai_cria_mov') THEN
+    DROP TRIGGER t_transferencias_ai_cria_mov ON public.transferencias;
+  END IF;
+END$$;
+
+CREATE TRIGGER t_transferencias_ai_cria_mov
+AFTER INSERT ON public.transferencias
+FOR EACH ROW
+EXECUTE FUNCTION public.trg_transfer_cria_mov();
+
+-- =====================================================================
+-- LANÇAMENTOS (JAN/FEV/MAR 2025) — ENTRADAS/SAÍDAS
+-- =====================================================================
+-- Observações:
+--   - Agora TODOS os INSERTs listam as colunas explicitamente.
+--   - forma_pagamento_id: 2 (PIX) para recebimentos; 1 (Dinheiro) para pagamentos.
+--   - conta_corrente: "Conta A - Operações".
+--   - Transferências não entram no DRE (conta_id NULL gerado pelo trigger).
+
+-- --------- JANEIRO ----------
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-10', c.id, cc.id, 100000, 'recebido'::mov_direcao, 2, 'Venda PDV JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Vendas via PDV';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-11', c.id, cc.id, 20000, 'pago'::mov_direcao, 1, 'Impostos JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Impostos';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-12', c.id, cc.id, 30000, 'pago'::mov_direcao, 1, 'Custo Matéria-Prima JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Matéria-Prima';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-13', c.id, cc.id, 15000, 'pago'::mov_direcao, 1, 'Manutenção JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Manutenção';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-14', c.id, cc.id, 1000, 'recebido'::mov_direcao, 2, 'Rendimentos JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Rendimentos de Aplicação';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-01-15', c.id, cc.id, 500, 'pago'::mov_direcao, 1, 'Tarifas JAN', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Tarifas Bancárias';
+
+-- --------- FEVEREIRO ----------
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-10', c.id, cc.id, 100000, 'recebido'::mov_direcao, 2, 'Venda PDV FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Vendas via PDV';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-11', c.id, cc.id, 20000, 'pago'::mov_direcao, 1, 'Impostos FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Impostos';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-12', c.id, cc.id, 30000, 'pago'::mov_direcao, 1, 'Custo Matéria-Prima FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Matéria-Prima';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-13', c.id, cc.id, 15000, 'pago'::mov_direcao, 1, 'Manutenção FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Manutenção';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-14', c.id, cc.id, 1000, 'recebido'::mov_direcao, 2, 'Rendimentos FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Rendimentos de Aplicação';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-02-15', c.id, cc.id, 500, 'pago'::mov_direcao, 1, 'Tarifas FEV', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Tarifas Bancárias';
+
+-- --------- MARÇO ----------
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-10', c.id, cc.id, 100000, 'recebido'::mov_direcao, 2, 'Venda PDV MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Vendas via PDV';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-11', c.id, cc.id, 20000, 'pago'::mov_direcao, 1, 'Impostos MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Impostos';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-12', c.id, cc.id, 30000, 'pago'::mov_direcao, 1, 'Custo Matéria-Prima MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Matéria-Prima';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-13', c.id, cc.id, 15000, 'pago'::mov_direcao, 1, 'Manutenção MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Manutenção';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-14', c.id, cc.id, 1000, 'recebido'::mov_direcao, 2, 'Rendimentos MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Rendimentos de Aplicação';
+
+INSERT INTO public.contas_corrente_movimento
+  (data, conta_id, conta_corrente_id, valor_centavos, direcao, forma_pagamento_id, descricao, transferencia_id)
+SELECT DATE '2025-03-15', c.id, cc.id, 500, 'pago'::mov_direcao, 1, 'Tarifas MAR', NULL::uuid
+FROM public.conta c JOIN public.contas_corrente cc ON cc.nome='Conta A - Operações'
+WHERE c.nome='Tarifas Bancárias';
+
+-- =====================================================================
+-- TRANSFERÊNCIAS (uma por mês: A -> B = 10.000)
+-- =====================================================================
+INSERT INTO public.transferencias
+  (id, data, origem_conta_corrente_id, destino_conta_corrente_id, valor_centavos, descricao, criado_em)
+SELECT gen_random_uuid(), DATE '2025-01-20', cco.id, ccd.id, 10000, 'Reserva JAN', now()
+FROM public.contas_corrente cco
+JOIN public.contas_corrente ccd ON ccd.nome='Conta B - Reserva'
+WHERE cco.nome='Conta A - Operações';
+
+INSERT INTO public.transferencias
+  (id, data, origem_conta_corrente_id, destino_conta_corrente_id, valor_centavos, descricao, criado_em)
+SELECT gen_random_uuid(), DATE '2025-02-20', cco.id, ccd.id, 10000, 'Reserva FEV', now()
+FROM public.contas_corrente cco
+JOIN public.contas_corrente ccd ON ccd.nome='Conta B - Reserva'
+WHERE cco.nome='Conta A - Operações';
+
+INSERT INTO public.transferencias
+  (id, data, origem_conta_corrente_id, destino_conta_corrente_id, valor_centavos, descricao, criado_em)
+SELECT gen_random_uuid(), DATE '2025-03-20', cco.id, ccd.id, 10000, 'Reserva MAR', now()
+FROM public.contas_corrente cco
+JOIN public.contas_corrente ccd ON ccd.nome='Conta B - Reserva'
+WHERE cco.nome='Conta A - Operações';
+
+COMMIT;

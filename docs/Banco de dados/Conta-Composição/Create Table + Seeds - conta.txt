@@ -1,0 +1,157 @@
+BEGIN;
+
+-- =========================================================
+-- (RE)CRIAÇÃO DA TABELA public.conta COM ID INTEIRO
+-- =========================================================
+-- Remova CASCADE se preferir controlar FKs manualmente
+DROP TABLE IF EXISTS public.conta CASCADE;
+
+-- Cria a sequence do ID (se ainda não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'S' AND c.relname = 'conta_id_seq' AND n.nspname = 'public'
+  ) THEN
+    CREATE SEQUENCE public.conta_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+  END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS public.conta
+(
+    id integer NOT NULL DEFAULT nextval('conta_id_seq'::regclass),
+    codigo text NOT NULL,
+    nome text NOT NULL,
+    nivel integer NOT NULL,
+    conta_pai_id integer,
+    tipo_conta_id integer NOT NULL,
+    classificacao_dre_id integer,
+    ativa boolean NOT NULL DEFAULT true,
+    criado_em timestamptz NOT NULL DEFAULT now(),
+    atualizado_em timestamptz NOT NULL DEFAULT now(),
+    natureza_id integer,
+    classificacao_balanco_id integer,
+    conta_direcao_id integer NOT NULL,
+    CONSTRAINT conta_pkey PRIMARY KEY (id),
+    CONSTRAINT conta_codigo_key UNIQUE (codigo),
+
+    CONSTRAINT conta_classificacao_balanco_fk FOREIGN KEY (classificacao_balanco_id)
+        REFERENCES public.classificacao_balanco (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT conta_classificacao_dre_id_fkey FOREIGN KEY (classificacao_dre_id)
+        REFERENCES public.classificacao_dre (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT conta_conta_direcao_fk FOREIGN KEY (conta_direcao_id)
+        REFERENCES public.conta_direcao (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT,
+
+    CONSTRAINT conta_conta_pai_id_fkey FOREIGN KEY (conta_pai_id)
+        REFERENCES public.conta (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT conta_natureza_id_fkey FOREIGN KEY (natureza_id)
+        REFERENCES public.natureza (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT conta_tipo_conta_id_fkey FOREIGN KEY (tipo_conta_id)
+        REFERENCES public.tipo_conta (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT conta_nivel_check CHECK (nivel >= 1)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conta_conta_direcao_id
+    ON public.conta USING btree (conta_direcao_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True);
+
+-- =========================================================
+-- SEEDS (usar IDs explícitos para previsibilidade)
+-- Convenções:
+--   tipo_conta: 1=Ativo, 2=Resultado, 3=Passivo, 4=PL
+--   conta_direcao: 1=Entrada, 2=Saída, 3=Neutra
+--   natureza: 1=Operacional, 2=Financeira, 3=Investimento, 4=Financiamento
+--   DRE: 1=ROB, 2=Imp/Dev, 3=CMV, 4=Pessoal, 5=G&A,
+--        6=Utilidades, 7=Aluguel/IPTU, 8=Propaganda,
+--        9=Pro labore, 10=Rec.Fin, 11=Desp.Fin
+--   Balanço: 1=Ativo Circ, 2=Ativo Não Circ, 3=Passivo Circ, 4=Passivo Não Circ, 5=PL
+-- =========================================================
+
+-- RAÍZES
+INSERT INTO public.conta
+(id, codigo, nome, nivel, conta_pai_id, tipo_conta_id, conta_direcao_id, classificacao_dre_id, classificacao_balanco_id, natureza_id, ativa)
+VALUES
+  (1, '3.1', 'Entradas', 1, NULL, 2, 1, NULL, NULL, 1, true),
+  (2, '3.2', 'Saídas',   1, NULL, 2, 2, NULL, NULL, 1, true);
+
+-- ENTRADAS (nível 2, pai = 1)
+INSERT INTO public.conta
+(id, codigo, nome, nivel, conta_pai_id, tipo_conta_id, conta_direcao_id, classificacao_dre_id, classificacao_balanco_id, natureza_id, ativa)
+VALUES
+  -- Receitas operacionais
+  (100, '3.1.01', 'Outras Receitas',        2, 1, 2, 1, 1,   NULL, 1, true), -- mapeada em ROB
+  (101, '3.1.11', 'Vendas via Loja Virtual',2, 1, 2, 1, 1,   NULL, 1, true),
+  (102, '3.1.12', 'Vendas via OS',          2, 1, 2, 1, 1,   NULL, 1, true),
+  (103, '3.1.13', 'Vendas via PDV',         2, 1, 2, 1, 1,   NULL, 1, true),
+  (104, '3.1.14', 'Vendas via Pedido',      2, 1, 2, 1, 1,   NULL, 1, true),
+
+  -- Financeiras / Outras
+  (105, '3.1.02', 'Rendimentos de Aplicação', 2, 1, 2, 1, 10,  NULL, 2, true), -- receitas financeiras
+  (106, '3.1.20', 'Aportes ou Empréstimos',   2, 1, 3, 1, NULL, 3,   4, true), -- entrada de financiamento (Passivo Circ); fora da DRE
+  (190, '3.1.90', 'Transferência (Entrada)',  2, 1, 1, 3, NULL, NULL, 1, true); -- neutra p/ relatórios de resultado
+
+-- SAÍDAS (nível 2, pai = 2)
+INSERT INTO public.conta
+(id, codigo, nome, nivel, conta_pai_id, tipo_conta_id, conta_direcao_id, classificacao_dre_id, classificacao_balanco_id, natureza_id, ativa)
+VALUES
+  (200, '3.2.01', 'Abatimentos',                 2, 2, 2, 2, 2,   NULL, 1, true),
+  (201, '3.2.02', 'Água',                        2, 2, 2, 2, 6,   NULL, 1, true),
+  (202, '3.2.03', 'Benefícios Salariais',        2, 2, 2, 2, 4,   NULL, 1, true),
+  (203, '3.2.04', 'Combustível e Pedágios',      2, 2, 2, 2, 5,   NULL, 1, true),
+  (204, '3.2.05', 'Contabilidade',               2, 2, 2, 2, 5,   NULL, 1, true),
+  (205, '3.2.06', 'Dobra funcionário',           2, 2, 2, 2, 4,   NULL, 1, true),
+  (206, '3.2.07', 'Embalagem',                   2, 2, 2, 2, 3,   NULL, 1, true),
+  (207, '3.2.08', 'Encargos Salariais',          2, 2, 2, 2, 4,   NULL, 1, true),
+  (208, '3.2.09', 'Honorários Advocatícios',     2, 2, 2, 2, 5,   NULL, 1, true),
+  (209, '3.2.10', 'Impostos',                    2, 2, 2, 2, 2,   NULL, 1, true),
+  (210, '3.2.11', 'Internet',                    2, 2, 2, 2, 6,   NULL, 1, true),
+  (211, '3.2.12', 'IPTU',                        2, 2, 2, 2, 7,   NULL, 1, true),
+  (212, '3.2.13', 'Luz',                         2, 2, 2, 2, 6,   NULL, 1, true),
+  (213, '3.2.14', 'Manutenção',                  2, 2, 2, 2, 5,   NULL, 1, true),
+  (214, '3.2.15', 'Material de Escritório',      2, 2, 2, 2, 5,   NULL, 1, true),
+  (215, '3.2.16', 'Matéria-Prima',               2, 2, 2, 2, 3,   NULL, 1, true),
+  (216, '3.2.17', 'Mercadoria para Revenda',     2, 2, 2, 2, 3,   NULL, 1, true),
+  (217, '3.2.18', 'Outras Despesas',             2, 2, 2, 2, 5,   NULL, 1, true),
+  (218, '3.2.19', 'Pagamento semanal',           2, 2, 2, 2, 4,   NULL, 1, true),
+  (219, '3.2.20', 'Pro labore',                  2, 2, 2, 2, 9,   NULL, 1, true),
+  (220, '3.2.21', 'Propaganda',                  2, 2, 2, 2, 8,   NULL, 1, true),
+  (221, '3.2.22', 'Salários',                    2, 2, 2, 2, 4,   NULL, 1, true),
+  (222, '3.2.23', 'Segurança',                   2, 2, 2, 2, 5,   NULL, 1, true),
+  (223, '3.2.24', 'Seguros em Geral',            2, 2, 2, 2, 5,   NULL, 1, true),
+  (224, '3.2.25', 'Serviços de Entrega',         2, 2, 2, 2, 5,   NULL, 1, true),
+  (225, '3.2.26', 'Tarifas Bancárias',           2, 2, 2, 2, 11,  NULL, 2, true), -- despesa financeira
+  (226, '3.2.27', 'Telefone Celular',            2, 2, 2, 2, 6,   NULL, 1, true),
+  (227, '3.2.28', 'Telefone Fixo',               2, 2, 2, 2, 6,   NULL, 1, true),
+  (228, '3.2.29', 'TV a Cabo',                   2, 2, 2, 2, 6,   NULL, 1, true),
+  (229, '3.2.30', 'Casa - gastos diários',       2, 2, 2, 2, 9,   NULL, 1, true),
+  (230, '3.2.31', 'Reforma Casa',                2, 2, 2, 2, 9,   NULL, 1, true),
+  (231, '3.2.32', 'Viagem e Hospedagem',         2, 2, 2, 2, 5,   NULL, 1, true),
+
+  -- Itens de balanço / investimento / neutros nas saídas
+  (240, '3.2.40', 'Ativos e Equipamentos Próprios', 2, 2, 1, 2, NULL, 2, 3, true), -- compra de imobilizado: Ativo Não Circulante, natureza Investimento
+  (290, '3.2.90', 'Transferência (Saída)',         2, 2, 1, 3, NULL, NULL, 1, true); -- neutra p/ DRE
+
+-- =========================================================
+-- REALINHA A SEQUENCE DO ID
+-- =========================================================
+SELECT setval('public.conta_id_seq', (SELECT COALESCE(MAX(id), 1) FROM public.conta), true);
+
+COMMIT;
