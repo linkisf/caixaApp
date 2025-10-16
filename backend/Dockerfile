@@ -9,4 +9,4 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 EXPOSE 8000
-CMD ["node", "src/server.js"]
+CMD ["node", "src/index.js"]

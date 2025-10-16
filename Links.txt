@@ -1,0 +1,3 @@
+pgAdmin: http://127.0.0.1:5051
+user: admin@suaempresa.com
+senha: 741852963

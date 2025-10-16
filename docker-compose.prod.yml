@@ -1,10 +1,12 @@
-version: "3.9"
+# Compose V2: não use a chave "version"
+# Arquivo pensado para Windows + Docker Desktop + WSL2
 
 networks:
   erpnet:
 
 volumes:
   pgdata:
+  pgadmin_data:
 
 services:
   db:
@@ -14,10 +16,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # TZ opcional (ex.: America/Bahia). Para Alpine, instale tzdata via imagem custom se quiser.
+      # TZ: America/Bahia
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"   # se não quiser expor para fora, remova esta linha
+    # Não expor 5432 em produção; backend acessa pela rede interna
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -25,6 +28,7 @@ services:
       retries: 5
     networks:
       - erpnet
+    restart: unless-stopped
 
   backend:
     build:
@@ -44,29 +48,14 @@ services:
       PORT: ${BACKEND_PORT}
     expose:
       - "${BACKEND_PORT}"
-    # Se quiser depurar externamente: ports: ["8000:8000"]
     networks:
-      - erpnet
+      erpnet:
+        aliases:
+          - backend         # garante que 'backend' resolva p/ este container
+          - erp_backend     # e também 'erp_backend'
     restart: unless-stopped
 
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: erp_nginx
-    depends_on:
-      - backend
-    ports:
-      - "${NGINX_HTTP_PORT}:80"
-      # - "443:443"  # se configurar SSL
-    volumes:
-      # Monta o build do frontend já empacotado
-      - ./frontend/dist:/usr/share/nginx/html:ro
-      # Monta a config do nginx
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - erpnet
-    restart: unless-stopped
-
-  # Build do frontend para gerar ./frontend/dist
+  # Builder do frontend (Vite). Gera ./frontend/dist no host.
   frontend-builder:
     build:
       context: ./frontend
@@ -76,6 +65,51 @@ services:
     container_name: erp_frontend_builder
     command: [ "sh", "-c", "echo 'Build concluido'; sleep 1" ]
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html   # recebe o build da etapa 1
+      - ./frontend/dist:/usr/share/nginx/html
     networks:
       - erpnet
+
+  # Servidor web (nginx). Usamos Dockerfile custom para copiar nginx.conf
+  nginx:
+    build:
+      context: ./nginx
+      # ./nginx/Dockerfile deve conter:
+      #   FROM nginx:1.27-alpine
+      #   COPY nginx.conf /etc/nginx/nginx.conf
+    container_name: erp_nginx
+    depends_on:
+      - backend
+      - frontend-builder
+    ports:
+      - "${NGINX_HTTP_PORT}:80"   # defina NGINX_HTTP_PORT no .env (80 ou 8080)
+      # - "443:443"               # habilite se configurar TLS no Dockerfile/nginx.conf
+    volumes:
+      # monta o build estático gerado pelo frontend-builder
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      # não montamos nginx.conf via bind para evitar o problema file↔dir no Windows
+    networks:
+      - erpnet
+    restart: unless-stopped
+
+  # pgAdmin 4 para administrar o Postgres (acesso local por segurança)
+  pgadmin:
+    image: dpage/pgadmin4:8.12
+    container_name: erp_pgadmin
+    depends_on:
+      - db
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_LOGIN_BANNER: '"Acesso restrito. Uso autorizado apenas."'  # <- aspas duplas DENTRO de aspas simples
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: "20"
+      GUNICORN_TIMEOUT: "120"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      # Bind local apenas: acesse em http://127.0.0.1:${PGADMIN_HTTP_PORT}
+      - "127.0.0.1:${PGADMIN_HTTP_PORT}:80"
+    networks:
+      - erpnet
+    restart: unless-stopped
