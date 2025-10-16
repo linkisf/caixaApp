@@ -1,13 +1,12 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS deps
 WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
 
-# copie ambos os arquivos para permitir npm ci
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
-
-COPY src ./src
-COPY knexfile.js ./
-# COPY .env ./.env   # (opcional; prefira variáveis de ambiente no compose)
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 EXPOSE 8000
-CMD ["npm", "start"]
+CMD ["node", "src/server.js"]

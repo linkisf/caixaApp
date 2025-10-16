@@ -1,46 +1,13 @@
-# # DEV (hot-reload)
-# FROM node:20-alpine AS dev
-# WORKDIR /app
-# COPY package.json package-lock.json* ./
-# RUN npm ci || npm i
-# COPY . .
-# EXPOSE 5173
-# CMD ["npm","run","dev"]
-
-# # PROD (build + nginx)
-# FROM node:20-alpine AS build
-# WORKDIR /app
-# COPY package.json package-lock.json* ./
-# RUN npm ci || npm i
-# COPY . .
-# ARG VITE_API_URL
-# ENV VITE_API_URL=$VITE_API_URL
-# RUN npm run build
-
-# FROM nginx:1.27-alpine AS prod
-# COPY --from=build /app/dist /usr/share/nginx/html
-# EXPOSE 80
-# CMD ["nginx","-g","daemon off;"]
-
-
-# ---- DEV (hot reload) ----
-FROM node:20-alpine
-
+FROM node:20-alpine AS build
 WORKDIR /app
-
-# Copia só os manifests para aproveitar cache de dependências
-COPY package.json package-lock.json* ./
-
-# Instala dependências (gera node_modules DO CONTAINER)
-RUN npm ci || npm i
-
-# Copia o restante do código
+COPY package*.json ./
+RUN npm ci
 COPY . .
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+RUN npm run build
 
-EXPOSE 5173
-
-# Vite em modo dev com HMR
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
-
-
-
+FROM nginx:1.27-alpine
+WORKDIR /usr/share/nginx/html
+RUN rm -rf ./*
+COPY --from=build /app/dist ./

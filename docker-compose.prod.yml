@@ -1,0 +1,81 @@
+version: "3.9"
+
+networks:
+  erpnet:
+
+volumes:
+  pgdata:
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: erp_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"   # se não quiser expor para fora, remova esta linha
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PGHOST: ${PGHOST}
+      PGPORT: ${PGPORT}
+      PGDATABASE: ${PGDATABASE}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PORT: ${BACKEND_PORT}
+    expose:
+      - "${BACKEND_PORT}"
+    # Se quiser depurar externamente: ports: ["8000:8000"]
+    networks:
+      - erpnet
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: erp_nginx
+    depends_on:
+      - backend
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      # - "443:443"  # se configurar SSL
+    volumes:
+      # Monta o build do frontend já empacotado
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      # Monta a config do nginx
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - erpnet
+    restart: unless-stopped
+
+  # Build do frontend para gerar ./frontend/dist
+  frontend-builder:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: erp_frontend_builder
+    command: [ "sh", "-c", "echo 'Build concluido'; sleep 1" ]
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html   # recebe o build da etapa 1
+    networks:
+      - erpnet
